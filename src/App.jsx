@@ -46,7 +46,7 @@ function emptyForm(players) {
   };
 }
 
-// แยกคาแฮนดิแคพ เช่น "0.5" -> [0.5], "0-0.5" -> [0, 0.5] (เต็ง 2 ใบ)
+// แยกคาแฮนดิแคพ เช่น "0.5" -> [0.5], "0-0.5" -> [0, 0.5] (เตง 2 ใบ)
 function parseHandicap(str) {
   if (str === '' || str === null || str === undefined) return [0];
   const parts = String(str)
@@ -56,7 +56,7 @@ function parseHandicap(str) {
   return parts.length ? parts : [0];
 }
 
-// คำนวณผล: คืน { profit, label } หรือ null ถ้ายังไม่รผล
+// คำนวณผล: คืน { profit, label } หรือ null ถ้ายังไม่รู้ผล
 function computeResult(pick, scoreA, scoreB) {
   if (scoreA === '' || scoreB === '' || scoreA === null || scoreB === null) return null;
   if (!pick.stake) return { profit: 0, label: '-' };
@@ -89,7 +89,7 @@ function computeResult(pick, scoreA, scoreB) {
   if (results.every((r) => r === 'win')) label = 'ชนะ';
   else if (results.every((r) => r === 'lose')) label = 'แพ้';
   else if (results.every((r) => r === 'push')) label = 'เสมอ';
-  else if (results.includes('win') && results.includes('push')) label = 'ชนะครึง';
+  else if (results.includes('win') && results.includes('push')) label = 'ชนะครึ่ง';
   else if (results.includes('push') && results.includes('lose')) label = 'เสียครึ่ง';
   else label = 'ผสม';
 
@@ -213,7 +213,6 @@ export default function App() {
       alert('รหัสไม่ถูกต้อง');
       return;
     }
-
     setEditingMatchId(match.id);
     setForm({
       date: match.date,
@@ -235,16 +234,12 @@ export default function App() {
     setForm(emptyForm(players));
   }
 
-  function setScore(id, field, value) {
-    setMatches((m) => m.map((x) => (x.id === id ? { ...x, [field]: value } : x)));
-  }
-
   function requestDelete(id) {
     try {
       const pw = window.prompt('กรุณากรอกรหัสผ่านเพื่อลบรายการ');
       if (pw === null) return;
       if (pw !== '8888') {
-        alert('รหัสผ่านไม่ถูกต้อง');
+        alert('รหัสผ่านไม่ถกต้อง');
         return;
       }
       setMatches((m) => m.filter((x) => x.id !== id));
@@ -315,7 +310,7 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-amber-700">
-              คนซั่วๆ World Cup 2026
+              คนซัวๆ World Cup 2026
             </h1>
             <p className="text-sm text-stone-600 font-medium">โดย Feejung ⚽</p>
           </div>
@@ -417,7 +412,7 @@ export default function App() {
                 className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end bg-stone-100 rounded-xl p-3 border border-stone-200"
               >
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs text-stone-600 mb-1">ผทาย</label>
+                  <label className="block text-xs text-stone-600 mb-1">ผู้ทาย</label>
                   <div className="text-sm font-medium text-amber-700">{pick.name}</div>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
@@ -429,7 +424,6 @@ export default function App() {
                   >
                     {getSideOptions(form.teamA, form.teamB).map((o) => (
                       <option key={o.value} value={o.value}>
-
                         {o.label}
                       </option>
                     ))}
@@ -552,30 +546,16 @@ export default function App() {
                     <tr key={m.id} className="border-b border-stone-200">
                       <td className="py-2 pr-2 whitespace-nowrap">{m.date}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{m.teamA} vs {m.teamB}</td>
-                      <td className="py-2 pr-2">
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            value={m.scoreA}
-                            onChange={(e) => setScore(m.id, 'scoreA', e.target.value)}
-                            className="w-12 bg-white border border-stone-300 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
-                          />
-                          <span className="text-stone-600 text-xs">-</span>
-                          <input
-                            type="number"
-                            value={m.scoreB}
-                            onChange={(e) => setScore(m.id, 'scoreB', e.target.value)}
-                            className="w-12 bg-white border border-stone-300 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-amber-400"
-                          />
-                        </div>
+                      <td className="py-2 pr-2 whitespace-nowrap text-sm font-medium">
+                        {m.scoreA === '' && m.scoreB === '' ? '- : -' : `${m.scoreA} - ${m.scoreB}`}
                       </td>
                       {players.map((p) => {
                         const pick = m.picks.find((x) => x.name === p);
                         const result = pick ? computeResult(pick, m.scoreA, m.scoreB) : null;
                         const sideLabel = pick ? getSideOptions(m.teamA, m.teamB).find((o) => o.value === pick.side)?.label : '-';
-                         const oddsDisplay = pick && pick.odds ? pick.odds : '-';
-                         const stakeDisplay = pick && pick.stake ? pick.stake : '-';
-                         if (pick && !pick.stake) {
+                        const oddsDisplay = pick && pick.odds ? pick.odds : '-';
+                        const stakeDisplay = pick && pick.stake ? pick.stake : '-';
+                        if (pick && !pick.stake) {
                           return (
                             <td key={p} className="py-2 pr-2 whitespace-nowrap text-stone-600 font-medium">
                               --
