@@ -1,21 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Trophy, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Trash2, Trophy, TrendingUp, TrendingDown, Pencil } from 'lucide-react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const DOC_REF = doc(db, 'wc2026', 'shared');
 
-const SIDE_OPTIONS = [
-  { value: 'A_give', label: 'ทีม A (ต่อ)' },
-  { value: 'A_get', label: 'ทีม A (รอง)' },
-  { value: 'B_give', label: 'ทีม B (ต่อ)' },
-  { value: 'B_get', label: 'ทีม B (รอง)' },
-];
-
 const HANDICAP_OPTIONS = [
   '0', '0-0.5', '0.5', '0.5-1', '1', '1-1.5', '1.5', '1.5-2',
   '2', '2-2.5', '2.5', '2.5-3', '3', '3-3.5', '3.5', '3.5-4', '4',
 ];
+
+const WC2026_TEAMS = [
+  'Algeria', 'Argentina', 'Australia', 'Austria', 'Belgium', 'Bosnia and Herzegovina',
+  'Brazil', 'Canada', 'Cape Verde', 'Colombia', 'Croatia', 'Curaçao', 'Czechia',
+  "Côte d'Ivoire", 'DR Congo', 'Ecuador', 'Egypt', 'England', 'France', 'Germany',
+  'Ghana', 'Haiti', 'Iran', 'Iraq', 'Japan', 'Jordan', 'Korea Republic', 'Mexico',
+  'Morocco', 'Netherlands', 'New Zealand', 'Norway', 'Panama', 'Paraguay', 'Portugal',
+  'Qatar', 'Saudi Arabia', 'Scotland', 'Senegal', 'South Africa', 'Spain', 'Sweden',
+  'Switzerland', 'Tunisia', 'Turkey', 'United States', 'Uruguay', 'Uzbekistan',
+];
+
+function getSideOptions(teamA, teamB) {
+  const a = teamA || 'ทีม A';
+  const b = teamB || 'ทีม B';
+  return [
+    { value: 'A_give', label: `${a} (ต่อ)` },
+    { value: 'A_get', label: `${a} (รอง)` },
+    { value: 'B_give', label: `${b} (ต่อ)` },
+    { value: 'B_get', label: `${b} (รอง)` },
+  ];
+}
 
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -32,7 +46,7 @@ function emptyForm(players) {
   };
 }
 
-// แยกค่าแฮนดิแคพ เช่น "0.5" -> [0.5], "0-0.5" -> [0, 0.5] (เต็ง 2 ใบ)
+// แยกคาแฮนดิแคพ เช่น "0.5" -> [0.5], "0-0.5" -> [0, 0.5] (เต็ง 2 ใบ)
 function parseHandicap(str) {
   if (str === '' || str === null || str === undefined) return [0];
   const parts = String(str)
@@ -42,7 +56,7 @@ function parseHandicap(str) {
   return parts.length ? parts : [0];
 }
 
-// คำนวณผล: คืน { profit, label } หรือ null ถ้ายังไม่รู้ผล
+// คำนวณผล: คืน { profit, label } หรือ null ถ้ายังไม่รผล
 function computeResult(pick, scoreA, scoreB) {
   if (scoreA === '' || scoreB === '' || scoreA === null || scoreB === null) return null;
   if (!pick.stake) return { profit: 0, label: '-' };
@@ -75,7 +89,7 @@ function computeResult(pick, scoreA, scoreB) {
   if (results.every((r) => r === 'win')) label = 'ชนะ';
   else if (results.every((r) => r === 'lose')) label = 'แพ้';
   else if (results.every((r) => r === 'push')) label = 'เสมอ';
-  else if (results.includes('win') && results.includes('push')) label = 'ชนะครึ่ง';
+  else if (results.includes('win') && results.includes('push')) label = 'ชนะครึง';
   else if (results.includes('push') && results.includes('lose')) label = 'เสียครึ่ง';
   else label = 'ผสม';
 
@@ -90,9 +104,11 @@ export default function App() {
   const [editingPlayers, setEditingPlayers] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [pwInput, setPwInput] = useState('');
+  const [editingMatchId, setEditingMatchId] = useState(null);
 
-    const remoteUpdate = useRef(false);
+  const remoteUpdate = useRef(false);
 
+  // ฟัง realtime จาก Firestore
   useEffect(() => {
     const unsub = onSnapshot(DOC_REF, (snap) => {
       const data = snap.data();
@@ -110,6 +126,7 @@ export default function App() {
     return () => unsub();
   }, []);
 
+  // บันทึกขึ้น Firestore เมื่อมีการเปลี่ยนแปลงจากผู้ใช้ (ไม่ใช่จาก remote)
   useEffect(() => {
     if (!loaded) return;
     if (remoteUpdate.current) {
@@ -141,7 +158,13 @@ export default function App() {
 
   function addMatch() {
     if (!form.teamA.trim() || !form.teamB.trim()) {
-      alert('กรุณากรอกชื่อทีมให้ครบค่ะ');
+      alert('กรุณากรอกชื่อทีมใหครบค่ะ');
+      return;
+    }
+    const pw = window.prompt('กรุณากรอกรหัสยืนยันเพื่อบันทึกแมตช์');
+    if (pw === null) return;
+    if (pw !== '8888') {
+      alert('รหัสไม่ถูกต้อง');
       return;
     }
     const cleanedPicks = form.picks.map((p) => ({
@@ -149,16 +172,66 @@ export default function App() {
       odds: parseFloat(p.odds) || 0,
       stake: parseFloat(p.stake) || 0,
     }));
-    const newMatch = {
-      id: uid(),
-      date: form.date,
-      teamA: form.teamA.trim(),
-      teamB: form.teamB.trim(),
-      scoreA: form.scoreA,
-      scoreB: form.scoreB,
-      picks: cleanedPicks,
-    };
-    setMatches((m) => [...m, newMatch].sort((a, b) => (a.date > b.date ? 1 : -1)));
+    if (editingMatchId) {
+      setMatches((m) =>
+        m
+          .map((x) =>
+            x.id === editingMatchId
+              ? {
+                  ...x,
+                  date: form.date,
+                  teamA: form.teamA.trim(),
+                  teamB: form.teamB.trim(),
+                  scoreA: form.scoreA,
+                  scoreB: form.scoreB,
+                  picks: cleanedPicks,
+                }
+              : x
+          )
+          .sort((a, b) => (a.date > b.date ? 1 : -1))
+      );
+      setEditingMatchId(null);
+    } else {
+      const newMatch = {
+        id: uid(),
+        date: form.date,
+        teamA: form.teamA.trim(),
+        teamB: form.teamB.trim(),
+        scoreA: form.scoreA,
+        scoreB: form.scoreB,
+        picks: cleanedPicks,
+      };
+      setMatches((m) => [...m, newMatch].sort((a, b) => (a.date > b.date ? 1 : -1)));
+    }
+    setForm(emptyForm(players));
+  }
+
+  function startEdit(match) {
+    const pw = window.prompt('กรุณากรอกรหัสเพื่อแกไขรายการนี้');
+    if (pw === null) return;
+    if (pw !== '8888') {
+      alert('รหัสไม่ถูกต้อง');
+      return;
+    }
+
+    setEditingMatchId(match.id);
+    setForm({
+      date: match.date,
+      teamA: match.teamA,
+      teamB: match.teamB,
+      scoreA: match.scoreA,
+      scoreB: match.scoreB,
+      picks: players.map((p) => {
+        const existing = match.picks.find((x) => x.name === p);
+        return existing
+          ? { ...existing }
+          : { name: p, side: 'A_give', handicap: '0', odds: '', stake: '' };
+      }),
+    });
+  }
+
+  function cancelEdit() {
+    setEditingMatchId(null);
     setForm(emptyForm(players));
   }
 
@@ -170,7 +243,7 @@ export default function App() {
     try {
       const pw = window.prompt('กรุณากรอกรหัสผ่านเพื่อลบรายการ');
       if (pw === null) return;
-      if (pw !== '888') {
+      if (pw !== '8888') {
         alert('รหัสผ่านไม่ถูกต้อง');
         return;
       }
@@ -182,7 +255,7 @@ export default function App() {
   }
 
   function confirmDeleteWithInput() {
-    if (pwInput !== '888') {
+    if (pwInput !== '8888') {
       alert('รหัสผ่านไม่ถูกต้อง');
       return;
     }
@@ -295,7 +368,9 @@ export default function App() {
         </section>
 
         <section className="bg-stone-50 rounded-2xl p-4 mb-5 border border-stone-200">
-          <h2 className="font-semibold text-amber-700 mb-3">เพิ่มแมตช์ใหม่</h2>
+          <h2 className="font-semibold text-amber-700 mb-3">
+            {editingMatchId ? 'แก้ไขแมตช์' : 'เพิ่มแมตช์ใหม่'}
+          </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
@@ -309,21 +384,29 @@ export default function App() {
             </div>
             <div>
               <label className="block text-xs text-stone-600 mb-1">ทีม A</label>
-              <input
+              <select
                 value={form.teamA}
                 onChange={(e) => setForm((f) => ({ ...f, teamA: e.target.value }))}
-                placeholder="เช่น บราซิล"
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-stone-600"
-              />
+                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="">- เลือกทีม -</option>
+                {WC2026_TEAMS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs text-stone-600 mb-1">ทีม B</label>
-              <input
+              <select
                 value={form.teamB}
                 onChange={(e) => setForm((f) => ({ ...f, teamB: e.target.value }))}
-                placeholder="เช่น อาร์เจนตินา"
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-stone-600"
-              />
+                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option value="">- เลือกทีม -</option>
+                {WC2026_TEAMS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -334,7 +417,7 @@ export default function App() {
                 className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end bg-stone-100 rounded-xl p-3 border border-stone-200"
               >
                 <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-xs text-stone-600 mb-1">ผู้ทาย</label>
+                  <label className="block text-xs text-stone-600 mb-1">ผทาย</label>
                   <div className="text-sm font-medium text-amber-700">{pick.name}</div>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
@@ -344,8 +427,9 @@ export default function App() {
                     onChange={(e) => updatePickField(i, 'side', e.target.value)}
                     className="w-full bg-white border border-stone-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
                   >
-                    {SIDE_OPTIONS.map((o) => (
+                    {getSideOptions(form.teamA, form.teamB).map((o) => (
                       <option key={o.value} value={o.value}>
+
                         {o.label}
                       </option>
                     ))}
@@ -370,7 +454,7 @@ export default function App() {
                     step="0.01"
                     value={pick.odds}
                     onChange={(e) => updatePickField(i, 'odds', e.target.value)}
-                    placeholder="0.82"
+                    placeholder="-"
                     className="w-full bg-white border border-stone-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-stone-600"
                   />
                 </div>
@@ -381,7 +465,7 @@ export default function App() {
                     step="1"
                     value={pick.stake}
                     onChange={(e) => updatePickField(i, 'stake', e.target.value)}
-                    placeholder="100"
+                    placeholder="-"
                     className="w-full bg-white border border-stone-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-stone-600"
                   />
                 </div>
@@ -391,7 +475,7 @@ export default function App() {
 
           <div className="mb-3">
             <label className="block text-xs text-stone-600 mb-1">
-              ผลสกอร์จริง (กรอกตอนรู้ผลแล้ว — เว้นว่างไว้ก่อนได้)
+              ผลสกอรจริง (กรอกตอนรู้ผลแล้ว — เว้นว่างไว้กอนได้)
             </label>
             <div className="flex items-center gap-2 w-full sm:w-64">
               <input
@@ -412,16 +496,26 @@ export default function App() {
             </div>
           </div>
 
-          <button
-            onClick={addMatch}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl px-5 py-2.5 transition"
-          >
-            <Plus size={18} /> เพิ่มแมตช์
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={addMatch}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-500 text-white font-semibold rounded-xl px-5 py-2.5 transition"
+            >
+              <Plus size={18} /> {editingMatchId ? 'บันทึกการแก้ไข' : 'เพิ่มแมตช์'}
+            </button>
+            {editingMatchId && (
+              <button
+                onClick={cancelEdit}
+                className="flex-1 sm:flex-none bg-stone-200 hover:bg-stone-300 text-stone-700 font-semibold rounded-xl px-5 py-2.5 transition"
+              >
+                ยกเลิก
+              </button>
+            )}
+          </div>
         </section>
 
         <section className="bg-stone-50 rounded-2xl p-4 mb-5 border border-stone-200">
-          <h2 className="font-semibold text-amber-700 mb-3">ยอดได้-เสียสะสม</h2>
+          <h2 className="font-semibold text-amber-700 mb-3">ยอดได-เสียสะสม</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
             {players.map((p) => (
               <div key={p} className="bg-stone-100 rounded-xl p-3 border border-stone-200">
@@ -478,11 +572,13 @@ export default function App() {
                       {players.map((p) => {
                         const pick = m.picks.find((x) => x.name === p);
                         const result = pick ? computeResult(pick, m.scoreA, m.scoreB) : null;
-                        const sideLabel = pick ? SIDE_OPTIONS.find((o) => o.value === pick.side)?.label : '-';
+                        const sideLabel = pick ? getSideOptions(m.teamA, m.teamB).find((o) => o.value === pick.side)?.label : '-';
+                        const oddsDisplay = pick && pick.odds ? pick.odds : '-';
+                        const stakeDisplay = pick && pick.stake ? pick.stake : '-';
                         return (
                           <td key={p} className="py-2 pr-2 whitespace-nowrap">
                             <div className="text-xs text-stone-600">
-                              {pick ? `${sideLabel} (${pick.handicap}) @${pick.odds || 0}` : '-'}
+                              {pick ? `${sideLabel} (${pick.handicap}) @${oddsDisplay} / ${stakeDisplay}฿` : '-'}
                             </div>
                             <div className={`font-medium ${colorClass(result ? result.profit : null)}`}>
                               {result ? `${fmt(result.profit)} (${result.label})` : '-'}
@@ -491,9 +587,14 @@ export default function App() {
                         );
                       })}
                       <td className="py-2">
-                        <button onClick={() => requestDelete(m.id)} className="text-rose-400 hover:text-rose-300">
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => startEdit(m)} className="text-amber-600 hover:text-amber-500">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => requestDelete(m.id)} className="text-rose-400 hover:text-rose-300">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
