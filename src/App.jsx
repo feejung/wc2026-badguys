@@ -573,15 +573,22 @@ export default function App() {
                         const pick = m.picks.find((x) => x.name === p);
                         const result = pick ? computeResult(pick, m.scoreA, m.scoreB) : null;
                         const sideLabel = pick ? getSideOptions(m.teamA, m.teamB).find((o) => o.value === pick.side)?.label : '-';
-                        const oddsDisplay = pick && pick.odds ? pick.odds : '-';
-                        const stakeDisplay = pick && pick.stake ? pick.stake : '-';
+                         const oddsDisplay = pick && pick.odds ? pick.odds : '-';
+                         const stakeDisplay = pick && pick.stake ? pick.stake : '-';
+                         if (pick && !pick.stake) {
+                          return (
+                            <td key={p} className="py-2 pr-2 whitespace-nowrap text-stone-600 font-medium">
+                              --
+                            </td>
+                          );
+                        }
                         return (
                           <td key={p} className="py-2 pr-2 whitespace-nowrap">
                             <div className="text-xs text-stone-600">
                               {pick ? `${sideLabel} (${pick.handicap}) @${oddsDisplay} / ${stakeDisplay}฿` : '-'}
                             </div>
                             <div className={`font-medium ${colorClass(result ? result.profit : null)}`}>
-                              {pick && !pick.stake ? '--' : result ? `${fmt(result.profit)} (${result.label})` : '-'}
+                              {result ? `${fmt(result.profit)} (${result.label})` : '-'}
                             </div>
                           </td>
                         );
