@@ -158,7 +158,7 @@ export default function App() {
 
   function addMatch() {
     if (!form.teamA.trim() || !form.teamB.trim()) {
-      alert('กรุณากรอกชื่อทีมใหครบค่ะ');
+      alert('กรุณากรอกชื่อทีมให้ครบค่ะ');
       return;
     }
     const pw = window.prompt('กรุณากรอกรหัสยืนยันเพื่อบันทึกแมตช์');
@@ -207,7 +207,7 @@ export default function App() {
   }
 
   function startEdit(match) {
-    const pw = window.prompt('กรุณากรอกรหัสเพื่อแกไขรายการนี้');
+    const pw = window.prompt('กรุณากรอกรหัสเพื่อแก้ไขรายการนี้');
     if (pw === null) return;
     if (pw !== '8888') {
       alert('รหัสไม่ถูกต้อง');
@@ -475,7 +475,7 @@ export default function App() {
 
           <div className="mb-3">
             <label className="block text-xs text-stone-600 mb-1">
-              ผลสกอรจริง (กรอกตอนรู้ผลแล้ว — เว้นว่างไว้กอนได้)
+              ผลสกอร์จริง (กรอกตอนรู้ผลแล้ว — เว้นว่างไว้ก่อนได้)
             </label>
             <div className="flex items-center gap-2 w-full sm:w-64">
               <input
@@ -515,7 +515,7 @@ export default function App() {
         </section>
 
         <section className="bg-stone-50 rounded-2xl p-4 mb-5 border border-stone-200">
-          <h2 className="font-semibold text-amber-700 mb-3">ยอดได-เสียสะสม</h2>
+          <h2 className="font-semibold text-amber-700 mb-3">ยอดได้-เสียสะสม</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-2">
             {players.map((p) => (
               <div key={p} className="bg-stone-100 rounded-xl p-3 border border-stone-200">
@@ -581,7 +581,7 @@ export default function App() {
                               {pick ? `${sideLabel} (${pick.handicap}) @${oddsDisplay} / ${stakeDisplay}฿` : '-'}
                             </div>
                             <div className={`font-medium ${colorClass(result ? result.profit : null)}`}>
-                              {result ? `${fmt(result.profit)} (${result.label})` : '-'}
+                              {pick && !pick.stake ? '--' : result ? `${fmt(result.profit)} (${result.label})` : '-'}
                             </div>
                           </td>
                         );
@@ -603,10 +603,6 @@ export default function App() {
             </div>
           )}
         </section>
-
-        <p className="text-center text-xs text-stone-600 mt-4">
-          ข้อมูลถูกบันทึกอัตโนมัติในเครื่องของคุณ
-        </p>
 
         {confirmDeleteId && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
