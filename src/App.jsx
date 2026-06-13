@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Trophy, TrendingUp, TrendingDown } from 'lucide-react';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { db } from './firebase';
 
-const STORAGE_KEY = 'wc-predictions-v2';
+const DOC_REF = doc(db, 'wc2026', 'shared');
 
 const SIDE_OPTIONS = [
   { value: 'A_give', label: 'ทีม A (ต่อ)' },
@@ -89,27 +91,34 @@ export default function App() {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [pwInput, setPwInput] = useState('');
 
+    const remoteUpdate = useRef(false);
+
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
+    const unsub = onSnapshot(DOC_REF, (snap) => {
+      const data = snap.data();
+      if (data) {
+        remoteUpdate.current = true;
         if (data.players) setPlayers(data.players);
         if (data.matches) setMatches(data.matches);
-        if (data.players) setForm(emptyForm(data.players));
+        if (data.players) setForm((f) => emptyForm(data.players));
       }
-    } catch (e) {
-      // ยังไม่มีข้อมูล
-    } finally {
       setLoaded(true);
-    }
+    }, (err) => {
+      console.error('Firestore error:', err);
+      setLoaded(true);
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, matches }));
-    } catch (e) {}
+    if (remoteUpdate.current) {
+      remoteUpdate.current = false;
+      return;
+    }
+    setDoc(DOC_REF, { players, matches }).catch((e) => {
+      console.error('บันทึกข้อมูลไม่สำเร็จ:', e);
+    });
   }, [players, matches, loaded]);
 
   useEffect(() => {
